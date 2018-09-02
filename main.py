@@ -49,7 +49,6 @@ def main():
 
     """Start the bot."""
     # Create the EventHandler and pass it your bot's token.
-    print(os.environ.get('TG_TOKEN'))
     updater = Updater(os.environ.get('TG_TOKEN'),
                       request_kwargs=REQUEST_KWARGS)
 
