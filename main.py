@@ -1,11 +1,11 @@
 import logging
 import os
+import re
 
-from dotenv import find_dotenv, load_dotenv
-from telegram.ext import CommandHandler, Filters, MessageHandler, Updater
 import requests
 from bs4 import BeautifulSoup
-import re
+from dotenv import find_dotenv, load_dotenv
+from telegram.ext import CommandHandler, Filters, MessageHandler, Updater
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -16,17 +16,16 @@ logger = logging.getLogger(__name__)
 
 def start(bot, update):
     """Send a message when the command /start is issued."""
-    update.message.reply_text('Hi!')
+    update.message.reply_text('Hi. I\'m waiting for your links.')
 
 
 def help(bot, update):
     """Send a message when the command /help is issued."""
-    update.message.reply_text('Just send a link to Yandex Music song.')
+    update.message.reply_text('Just send me a link to Yandex Music or Google Play Music song.')
 
 
-def convert(bot, update):
-    link = update.message.text
-    r = requests.get(link)
+def yandex_to_google(yandex_link):
+    r = requests.get(yandex_link)
     soup = BeautifulSoup(r.text, 'html.parser')
     html_title = soup.find('title').text
     pattern = r'^(.*) — (.*)\. Слушать онлайн на Яндекс.Музыке$'
@@ -34,8 +33,31 @@ def convert(bot, update):
     title_encoded = title.replace(' ', '+')
     artist_encoded = artist.replace(' ', '+')
     url = f'https://play.google.com/music/listen#/sr/{title_encoded}+{artist_encoded}'
-    update.message.reply_text(url)
+    return url
 
+
+def google_to_yandex(google_link):
+    title, artist = google_link.split('?t=')[1].replace('_', ' ').split(' - ')
+    url = f'https://music.yandex.ru/search?text={title} {artist}'.replace(' ', '%20')
+    return url
+
+
+def convert(bot, update):
+    try:
+        link = update.message.text
+        logger.info(link)
+        if 'music.yandex.ru' in link:
+            reply = yandex_to_google(link)
+        elif 'play.google.com/music' in link:
+            reply = google_to_yandex(link)
+        else:
+            reply = 'Unknown link.'
+
+        update.message.reply_text(reply)
+    except Exception as e:
+        logger.exception(e)
+        update.message.reply_text('Unknown error.')
+    
 
 def error(bot, update, error):
     """Log Errors caused by Updates."""
